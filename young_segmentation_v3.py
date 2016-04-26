@@ -7,12 +7,15 @@ from PIL import Image
 from matplotlib import image
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from scipy.cluster import vq
-import cv2
+from scipy import ndimage
+from skimage.measure import label, regionprops
+import pandas as pd
+from collections import defaultdict
 import time
 
 start_time = time.time()
 
-np.set_printoptions(threshold=np.nan)
+# np.set_printoptions(threshold=np.nan)
 
 parser = OptionParser()
 parser.add_option("-i", "--input_image", dest="image", type="string", action="store")
@@ -26,7 +29,7 @@ class Segmentation:
 		self.x = self.image.shape[0]
 		self.y = self.image.shape[1]
 		self.dimensions = self.image.shape[0] * self.image.shape[1]
-		self.im_grey = cv2.imread(image,0)
+		self.im_grey = ndimage.imread(image)[:,:,0]
 
 	def rgb2lab(self):
 		lab = color.rgb2lab(self.image)
@@ -62,21 +65,6 @@ class Segmentation:
 		mkb.fit(features)
 		return mkb.labels_
 
-	def visualize2(self):
-		labels = S.kmeans().reshape(self.x, self.y)
-		intensity_list = []
-		final_list = []
-		for i in range(3):
-			im, _ = S.rgb2lab()
-			im[labels != i] = 0
-			final_list.append(im)
-			intensity_list.append(np.mean(im))
-		im_bin = final_list[intensity_list.index(min(intensity_list))]
-		im_bin[im_bin != 0] = 1
-		plt.imsave("./testing11.png", im_bin, cmap='gray')
-
-
-
 	def visualize(self):
 		labels = S.kmeans()
 		labels = labels.reshape(self.x, self.y)
@@ -90,18 +78,64 @@ class Segmentation:
 			intensity_list.append(np.mean(grey))
 		min_index = intensity_list.index(min(intensity_list))
 		im = final_list[min_index]
-		im[im != 0] = 1
-		plt.imsave("./testing1_mb.png", im, cmap="gray")
+		im_grey = np.zeros((self.x, self.y))
+		im_grey[im != 0] = 1
+		plt.imsave("./testing1_mb.png", im_grey, cmap="gray")
 		final[im == 0] = 0
 		plt.imsave("./testing1_color.png", final)
+		return im_grey
 
-
-
+	def labels(self):
+		img = S.visualize()
+		labels = label(img)
+		measurements = regionprops(labels, self.im_grey)
+		print len(measurements)
+		meas_dict = defaultdict(list)
+		for i in range(len(measurements)):
+			meas_dict['area'].append(measurements[i]['area'])
+			meas_dict['bbox'].append(measurements[i]['bbox'])
+			meas_dict['centroid'].append(measurements[i]['centroid'])
+			meas_dict['convex_area'].append(measurements[i]['convex_area'])
+			meas_dict['convex_image'].append(measurements[i]['convex_image'])
+			meas_dict['coords'].append(measurements[i]['coords'])
+			meas_dict['eccentricity'].append(measurements[i]['eccentricity'])
+			meas_dict['equivalent_diamterer'].append(measurements[i]['equivalent_diameter'])
+			meas_dict['euler_number'].append(measurements[i]['euler_number'])
+			meas_dict['extent'].append(measurements[i]['extent'])
+			meas_dict['filled_area'].append(measurements[i]['filled_area'])
+			meas_dict['filled_image'].append(measurements[i]['filled_image'])
+			meas_dict['image'].append(measurements[i]['image'])
+			meas_dict['intertia_tensor'].append(measurements[i]['inertia_tensor'])
+			meas_dict['intertia_tensor_eigvals'].append(measurements[i]['inertia_tensor_eigvals'])
+			meas_dict['intensity_image'].append(measurements[i]['intensity_image'])
+			meas_dict['label'].append(measurements[i]['label'])
+			meas_dict['local_centroid'].append(measurements[i]['local_centroid'])
+			meas_dict['major_axis_length'].append(measurements[i]['major_axis_length'])
+			meas_dict['max_intensity'].append(measurements[i]['max_intensity'])
+			meas_dict['mean_intensity'].append(measurements[i]['mean_intensity'])
+			meas_dict['min_intensity'].append(measurements[i]['min_intensity'])
+			meas_dict['minor_axis_length'].append(measurements[i]['minor_axis_length'])
+			meas_dict['moments'].append(measurements[i]['moments'])
+			meas_dict['moments_central'].append(measurements[i]['moments_central'])
+			meas_dict['moments_hu'].append(measurements[i]['moments_hu'])
+			meas_dict['moments_normalized'].append(measurements[i]['moments_normalized'])
+			meas_dict['orientation'].append(measurements[i]['orientation'])
+			meas_dict['perimeter'].append(measurements[i]['perimeter'])
+			meas_dict['solidity'].append(measurements[i]['solidity'])
+			meas_dict['weighted_centroid'].append(measurements[i]['weighted_centroid'])
+			meas_dict['weighted_local_centroid'].append(measurements[i]['weighted_local_centroid'])
+			meas_dict['weighted_moments'].append(measurements[i]['weighted_moments'])
+			meas_dict['weighted_moments_central'].append(measurements[i]['weighted_moments_central'])
+			meas_dict['weighted_moments_hu'].append(measurements[i]['weighted_moments_hu'])
+			meas_dict['weighted_moments_normalized'].append(measurements[i]['weighted_moments_normalized'])
+		meas_df = pd.DataFrame(meas_dict)
+		# meas_df.to_csv("./test.csv")
 
 (options, args) = parser.parse_args()
 
 S = Segmentation(options.image, options.output_dir)
-S.visualize()
+# S.visualize()
+S.labels()
 print time.time() - start_time
 
 
