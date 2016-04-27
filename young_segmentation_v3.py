@@ -12,6 +12,7 @@ from skimage.measure import label, regionprops
 import pandas as pd
 from collections import defaultdict
 import time
+import cPickle as pickle
 
 start_time = time.time()
 
@@ -35,6 +36,7 @@ class Segmentation:
 		lab = color.rgb2lab(self.image)
 		nuclei = lab[:,:,2]
 		lab1 = np.reshape(lab[:,:,0], (1, self.dimensions))
+		print lab1
 		lab2 = np.reshape(lab[:,:,1], (1, self.dimensions))
 		lab3 = np.reshape(lab[:,:,2], (1, self.dimensions))
 		lab_flattened = np.vstack((vq.whiten(lab1),vq.whiten(lab2),vq.whiten(lab3)))
@@ -51,7 +53,7 @@ class Segmentation:
 			real_gabor_flattened = np.reshape(real_gabor, (1, (real_gabor.shape[0]*real_gabor.shape[1])))
 			imaginary_gabor_flattened = np.reshape(imaginary_gabor, (1, (imaginary_gabor.shape[0]*imaginary_gabor.shape[1])))
 			mag = np.sqrt(np.square(real_gabor_flattened, dtype=np.float64)+np.square(imaginary_gabor_flattened, dtype=np.float64))
-			sigma = 2 * item[0]
+			sigma = .5 * item[0]
 			K = 2
 			mag_gaussian = vq.whiten(filters.gaussian(mag, K*sigma))
 			list_of_mags.append(mag_gaussian)
@@ -85,11 +87,15 @@ class Segmentation:
 		plt.imsave("./testing1_color.png", final)
 		return im_grey
 
+	def save_label_matrix(self):
+		im = S.visualize()
+		labels = label(im)
+		pickle.dump(labels, open("./label_matrix.p", 'wb'))
+
 	def labels(self):
 		img = S.visualize()
 		labels = label(img)
 		measurements = regionprops(labels, self.im_grey)
-		print len(measurements)
 		meas_dict = defaultdict(list)
 		for i in range(len(measurements)):
 			meas_dict['area'].append(measurements[i]['area'])
@@ -134,8 +140,10 @@ class Segmentation:
 (options, args) = parser.parse_args()
 
 S = Segmentation(options.image, options.output_dir)
+# S.rgb2lab()
 # S.visualize()
-S.labels()
+S.save_label_matrix()
+# S.labels()
 print time.time() - start_time
 
 
